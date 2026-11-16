@@ -55,12 +55,14 @@ SENSITIVE_CONFIG_KEYS = {
     "password_hash",
     "secret",
     "token",
+    # Proxy URLs carry credentials (http://user:pass@host:port).
+    "http_client_proxies",
 }
 SKIPPED_REQUEST_LOG_PATHS = {"/api/health", "/docs", "/redoc", "/openapi.json"}
 SKIPPED_REQUEST_LOG_PREFIXES = ("/requests",)
 
-BUNDLED_LLM_PROVIDERS = ("openai", "anthropic", "gemini")
-BUNDLED_EMBEDDER_PROVIDERS = ("openai", "gemini")
+BUNDLED_LLM_PROVIDERS = ("openai", "anthropic", "gemini", "deepseek")
+BUNDLED_EMBEDDER_PROVIDERS = ("openai", "gemini", "voyage")
 
 
 def _warn_if_unconfigured() -> None:
@@ -111,11 +113,18 @@ POSTGRES_DB = os.environ.get("POSTGRES_DB", "postgres")
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "postgres")
 POSTGRES_COLLECTION_NAME = os.environ.get("POSTGRES_COLLECTION_NAME", "memories")
-
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
-DEFAULT_LLM_MODEL = os.environ.get("MEM0_DEFAULT_LLM_MODEL", "gpt-5-mini")
-DEFAULT_EMBEDDER_MODEL = os.environ.get("MEM0_DEFAULT_EMBEDDER_MODEL", "text-embedding-3-small")
+
+# LLM: DeepSeek, reached directly (never through the Voyage proxy).
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+DEFAULT_LLM_MODEL = os.environ.get("MEM0_DEFAULT_LLM_MODEL", "deepseek-flash")
+
+# Embedder: Voyage AI. VOYAGE_PROXY_URL (http://user:pass@host:port) is optional
+# and applies to Voyage requests only; leave it empty to connect directly.
+VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY")
+VOYAGE_PROXY_URL = os.environ.get("VOYAGE_PROXY_URL") or None
+DEFAULT_EMBEDDER_MODEL = os.environ.get("MEM0_DEFAULT_EMBEDDER_MODEL", "voyage-4")
+EMBEDDING_DIMS = int(os.environ.get("MEM0_EMBEDDING_DIMS", "1024"))
 
 DEFAULT_CONFIG = {
     "version": "v1.1",
@@ -128,13 +137,22 @@ DEFAULT_CONFIG = {
             "user": POSTGRES_USER,
             "password": POSTGRES_PASSWORD,
             "collection_name": POSTGRES_COLLECTION_NAME,
+            "embedding_model_dims": EMBEDDING_DIMS,
         },
     },
     "llm": {
-        "provider": "openai",
-        "config": {"api_key": OPENAI_API_KEY, "temperature": 0.2, "model": DEFAULT_LLM_MODEL},
+        "provider": "deepseek",
+        "config": {"api_key": DEEPSEEK_API_KEY, "temperature": 0.1, "model": DEFAULT_LLM_MODEL},
     },
-    "embedder": {"provider": "openai", "config": {"api_key": OPENAI_API_KEY, "model": DEFAULT_EMBEDDER_MODEL}},
+    "embedder": {
+        "provider": "voyage",
+        "config": {
+            "api_key": VOYAGE_API_KEY,
+            "model": DEFAULT_EMBEDDER_MODEL,
+            "embedding_dims": EMBEDDING_DIMS,
+            "http_client_proxies": VOYAGE_PROXY_URL,
+        },
+    },
     "history_db_path": HISTORY_DB_PATH,
 }
 

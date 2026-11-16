@@ -1,0 +1,11 @@
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!mem0
+!server
+server/.env
+server/dashboard
+server/mcp
+server/history
+**/__pycache__

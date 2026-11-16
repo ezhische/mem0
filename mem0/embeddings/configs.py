@@ -21,6 +21,7 @@ class EmbedderConfig(BaseModel):
             "gemini",
             "vertexai",
             "together",
+            "voyage",
             "lmstudio",
             "langchain",
             "aws_bedrock",

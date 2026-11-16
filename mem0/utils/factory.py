@@ -158,6 +158,7 @@ class EmbedderFactory:
         "gemini": "mem0.embeddings.gemini.GoogleGenAIEmbedding",
         "vertexai": "mem0.embeddings.vertexai.VertexAIEmbedding",
         "together": "mem0.embeddings.together.TogetherEmbedding",
+        "voyage": "mem0.embeddings.voyage.VoyageEmbedding",
         "lmstudio": "mem0.embeddings.lmstudio.LMStudioEmbedding",
         "langchain": "mem0.embeddings.langchain.LangchainEmbedding",
         "aws_bedrock": "mem0.embeddings.aws_bedrock.AWSBedrockEmbedding",

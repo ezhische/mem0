@@ -1,0 +1,88 @@
+# Production stack. Everything listens on 127.0.0.1 only; nginx on the host
+# terminates TLS and proxies / -> dashboard, /api/v1/ -> API, /mcp -> MCP server.
+#
+#   docker compose -f docker-compose.prod.yaml up -d --build
+name: mem0
+
+services:
+  mem0:
+    build:
+      context: ..
+      dockerfile: server/prod.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8000"
+    env_file:
+      - .env
+    environment:
+      - MEM0_ROOT_PATH=${MEM0_ROOT_PATH:-}
+    networks:
+      - mem0_network
+    volumes:
+      - mem0_history:/app/history
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    shm_size: "128mb"
+    networks:
+      - mem0_network
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d postgres -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+
+  mem0-dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - mem0_network
+    environment:
+      - NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:?Set PUBLIC_API_URL in .env}
+      - API_INTERNAL_URL=http://mem0:8000
+      - NEXT_PUBLIC_INSTANCE_NAME=Mem0
+    depends_on:
+      mem0:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mem0-mcp:
+    build: ./mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"
+    networks:
+      - mem0_network
+    environment:
+      - MEM0_API_URL=http://mem0:8000
+      - MEM0_API_KEY=${ADMIN_API_KEY:?Set ADMIN_API_KEY in .env}
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
+      - MCP_URL_SECRET=${MCP_URL_SECRET:-}
+      - MCP_DEFAULT_USER_ID=${MCP_DEFAULT_USER_ID:-default}
+    depends_on:
+      mem0:
+        condition: service_started
+
+volumes:
+  postgres_db:
+  mem0_history:
+
+networks:
+  mem0_network:
+    driver: bridge

@@ -9,8 +9,11 @@ from mem0.embeddings.base import EmbeddingBase
 
 DEFAULT_BASE_URL = "https://api.voyageai.com/v1"
 MAX_BATCH = 128
-MAX_ATTEMPTS = 3
 REQUEST_TIMEOUT = 60.0
+# Seconds to wait before each retry. Rate limits (HTTP 429) get a longer
+# schedule: accounts without a payment method are limited to 3 requests/minute.
+RETRY_DELAYS = (1, 2)
+RATE_LIMIT_RETRY_DELAYS = (5, 15, 25, 25)
 
 
 class VoyageEmbedding(EmbeddingBase):
@@ -51,7 +54,9 @@ class VoyageEmbedding(EmbeddingBase):
         if self._output_dimension:
             payload["output_dimension"] = self._output_dimension
 
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        errors = 0
+        rate_limits = 0
+        while True:
             try:
                 response = self.client.post(
                     f"{self.base_url}/embeddings",
@@ -60,14 +65,20 @@ class VoyageEmbedding(EmbeddingBase):
                     timeout=REQUEST_TIMEOUT,
                 )
             except httpx.TransportError:
-                if attempt == MAX_ATTEMPTS:
+                if errors >= len(RETRY_DELAYS):
                     raise
+                time.sleep(RETRY_DELAYS[errors])
+                errors += 1
+                continue
+
+            if response.status_code == 429 and rate_limits < len(RATE_LIMIT_RETRY_DELAYS):
+                time.sleep(RATE_LIMIT_RETRY_DELAYS[rate_limits])
+                rate_limits += 1
+            elif response.status_code >= 500 and errors < len(RETRY_DELAYS):
+                time.sleep(RETRY_DELAYS[errors])
+                errors += 1
             else:
-                if response.status_code != 429 and response.status_code < 500:
-                    break
-                if attempt == MAX_ATTEMPTS:
-                    break
-            time.sleep(attempt)
+                break
 
         if response.status_code != 200:
             raise RuntimeError(

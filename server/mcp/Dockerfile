@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY mcp_server.py .
+COPY mcp_server.py oauth.py ./
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8765

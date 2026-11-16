@@ -75,9 +75,19 @@ services:
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
       - MCP_URL_SECRET=${MCP_URL_SECRET:-}
       - MCP_DEFAULT_USER_ID=${MCP_DEFAULT_USER_ID:-default}
+      # OAuth 2.1 (enabled when MCP_PUBLIC_URL is set); state lives in the app database.
+      - MCP_PUBLIC_URL=${MCP_PUBLIC_URL:-}
+      - MCP_OAUTH_ALLOWED_REDIRECTS=${MCP_OAUTH_ALLOWED_REDIRECTS:-}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - APP_DB_NAME=${APP_DB_NAME:-mem0_app}
     depends_on:
       mem0:
         condition: service_started
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_db:
